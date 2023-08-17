@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 // 导入lil-gui
 import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'
+// 导入 hdr 加载器
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader'
 
 // 创建场景
 const scene = new THREE.Scene()
@@ -20,70 +22,6 @@ const renderer = new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth, window.innerHeight)
 document.body.appendChild(renderer.domElement)
 
-// 创建几何体
-const geometry = new THREE.BufferGeometry()
-
-// 使用索引绘制 - 共用顶点，只要四个顶点就能生成一个面
-const vertices = new Float32Array([
-  -1.0, -1.0, 0,
-  1.0, -1.0, 0,
-  1.0, 1.0, 0,
-  -1.0, 1.0, 0
-])
-//创建顶点属性
-geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-// 创建索引
-const indices = new Uint16Array([
-  0, 1, 2, 2, 3, 0
-])
-// 创建索引属性
-geometry.setIndex(new THREE.BufferAttribute(indices, 1))
-
-// 设置2个顶点组，形成2个材质
-geometry.addGroup(0, 3, 0)
-geometry.addGroup(3, 3, 1)
-
-console.log(geometry);
-
-// 创建材质
-const material = new THREE.MeshBasicMaterial({ 
-  color: 0x00ff00, 
-  // side: THREE.DoubleSide, // 双面是否都可以看见
-  wireframe: true, // 线框模式
-})
-const material1 = new THREE.MeshBasicMaterial({
-  color: 0xff0000,
-})
-const plan = new THREE.Mesh(geometry, [material, material1])
-scene.add(plan)
-
-const cubeGeometry = new THREE.BoxGeometry(1, 1, 1)
-const cubeMaterial = new THREE.MeshBasicMaterial({
-  color: 0x00ff00
-})
-const cubeMaterial1 = new THREE.MeshBasicMaterial({
-  color: 0xff0000
-})
-const cubeMaterial2 = new THREE.MeshBasicMaterial({
-  color: 0x0000ff
-})
-const cubeMaterial3 = new THREE.MeshBasicMaterial({
-  color: 0xff00ff
-})
-const cubeMaterial4 = new THREE.MeshBasicMaterial({
-  color: 0x00ffff
-})
-const cubeMaterial5 = new THREE.MeshBasicMaterial({
-  color: 0xffff00
-})
-const cube = new THREE.Mesh(
-  cubeGeometry,
-  [cubeMaterial, cubeMaterial1, cubeMaterial2, cubeMaterial3, cubeMaterial4, cubeMaterial5]
-)
-
-cube.position.x = 2;
-
-scene.add(cube)
 
 // 设置相机位置
 camera.position.z = 5
@@ -145,6 +83,52 @@ let eventObj = {
 
 // 创建 GUI
 const gui = new GUI();
-// 添加全屏功能
-gui.add(eventObj, 'FullScreen').name('全屏');
-gui.add(eventObj, 'exitFullScreen').name('退出全屏');
+
+
+// 创建纹理加载器
+const textureLoader = new THREE.TextureLoader()
+// 加载纹理
+const texture = textureLoader.load('/public/image/manhole cover.png')
+
+// 加载ao贴图
+const aoMap = textureLoader.load('/public/image/manhole cover.png')
+
+// 透明度贴图
+const alphaMap = textureLoader.load('/public/image/door.png')
+
+// 加载光照贴图
+const lightMap = textureLoader.load('/public/image/colors.png')
+
+// rgbeLoader 加载hdr贴图
+const rgbeLoader = new RGBELoader();
+rgbeLoader.load('/public/image/brown_photostudio_02_4k.hdr', (envMap) => {
+  // 设置球形贴图
+  envMap.mapping = THREE.EquirectangularReflectionMapping;
+  // 设置场景贴图
+  scene.background = envMap;
+  // 设置环境贴图
+  scene.environment = envMap
+  // 设置 plane 的环境贴图, 就可以在材质上看到环境的反射
+  planeMaterial.envMap = envMap;
+})
+
+// 高光贴图
+let specularMap = textureLoader.load('/public/image/manhole cover.png')
+
+let planeGeometry = new THREE.PlaneGeometry(1, 1)
+let planeMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
+  map: texture, // 贴图
+  transparent: true, // 允许透明 
+  aoMap, // 设置ao贴图
+  // alphaMap, // 透明度贴图
+  // lightMap, // 光照贴图
+  // reflectivity: 0.1, // 反射强度
+  specularMap, // 高光贴图
+})
+
+let plane = new THREE.Mesh(planeGeometry, planeMaterial)
+
+scene.add(plane)
+
+gui.add(planeMaterial, "aoMapIntensity").min(0).max(5).step(0.001)
